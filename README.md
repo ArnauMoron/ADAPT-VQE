@@ -32,20 +32,23 @@ git clone https://github.com/ArnauMoron/ADAPT-VQE
 pip install -r requirements.txt
 
 ```
-##  Usage and Workflow
 
-[cite_start]The main workflow is demonstrated in the `ADAPT-VQE simulations.ipynb` notebook.
+## Usage and Workflow
 
-1.  [cite_start]**Run Classical ADAPT**: The `ADAPT_minimization` function runs the ADAPT algorithm classically to determine the optimal sequence of operators for building the ansatz.
+The main workflow is demonstrated in the `ADAPT-VQE simulations.ipynb` notebook.
+
+1. **Run Classical ADAPT**: The `ADAPT_minimization` function runs the ADAPT algorithm classically to determine the optimal sequence of operators for building the ansatz.
+
     ```python
     data, nucleo = ADAPT_minimization(nuc='Be6', ref_state=0, n_qubits=6, max_layers=3)
     ```
 
-2.  [cite_start]**Build Quantum Circuits**: Using the selected operators, `Circuits_Composser` constructs all the necessary quantum circuits to measure the different energy contributions.
+2. **Build Quantum Circuits**: Using the selected operators, `Circuits_Composser` constructs all the necessary quantum circuits to measure the different energy contributions.
 
-3.  [cite_start]**Measure Energy (Quantum Simulation)**: The `Qibo_measure_Energy` function calculates the total energy. It can operate in two modes:
-    * [cite_start]**Exact**: By calculating the expectation value analytically from the final state vector.
-    * [cite_start]**Shot-based**: By simulating actual measurements on the circuit to estimate probabilities and, from them, the energy.
+3. **Measure Energy (Quantum Simulation)**: The `Qibo_measure_Energy` function calculates the total energy. It can operate in two modes:
+    * **Exact**: By calculating the expectation value analytically from the final state vector.
+    * **Shot-based**: By simulating actual measurements on the circuit to estimate probabilities and, from them, the energy.
+
     ```python
     # Exact measurement
     Et_exact = Qibo_measure_Energy(..., exact=True)
@@ -54,14 +57,15 @@ pip install -r requirements.txt
     Et_shots = Qibo_measure_Energy(..., exact=False, nshots=1000)
     ```
 
-4.  [cite_start]**Mixed Optimization**: The `ADAPT_mixed_minimization` function takes the operator ordering from the classical step and re-optimizes the operator parameters directly on the quantum simulator, taking shot noise into account.
+4. **Mixed Optimization**: The `ADAPT_mixed_minimization` function takes the operator ordering from the classical step and re-optimizes the operator parameters directly on the quantum simulator, taking shot noise into account.
+
     ```python
     data_mixed, nucleo = ADAPT_mixed_minimization(data=data, ..., exact=False, nshots=1000)
     ```
 
-##  Acknowledgements
+## Acknowledgements
 
 The foundational code for the classical ADAPT-VQE algorithm was developed by **Miquel Carrasco**. His original work can be found in his repository:
-* [miquel-carrasco/UCC_vs_ADAPT_p_shell](https://github.com/miquel-carrasco/UCC_vs_ADAPT_p_shell)
+*[miquel-carrasco/UCC_vs_ADAPT_p_shell](https://github.com/miquel-carrasco/UCC_vs_ADAPT_p_shell)
 
 The adaptation of this classical framework and the **entire quantum implementation**—including circuit building with `qibo`, energy measurement protocols, and the hybrid simulation logic—were developed as part of this Bachelor's Thesis

@@ -26,8 +26,7 @@ The project combines a classical framework for operator selection with a quantum
 To run this project, clone the repository and install the required dependencies.
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
-cd <REPOSITORY_DIRECTORY>
+git clone https://github.com/ArnauMoron/ADAPT-VQE
 
 # Install the dependencies
 pip install -r requirements.txt

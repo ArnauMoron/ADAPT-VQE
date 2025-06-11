@@ -1,8 +1,8 @@
 # ADAPT-VQE for Nuclear Ground State Simulations
 
-This repository contains the code developed for my Bachelor's Thesis, focusing on the implementation and simulation of the **Variational Quantum Eigensolver (VQE)** algorithm using an adaptive ansatz, known as **ADAPT-VQE**. The goal is to calculate the ground-state energy of atomic nuclei, such as Beryllium-6 ($^6$Be).
+This repository contains the code developed for my Bachelor's Thesis, focusing on the implementation and simulation of the **ADAPT-VQE** algorithm to calculate the ground-state energy of light atomic nuclei.
 
-The project combines a classical framework for operator selection with a quantum implementation for circuit construction and measurement, leveraging the `qibo` framework.
+The project combines a classical framework for operator selection with a quantum implementation for circuit construction and measurement.
 
 ## Key Features
 

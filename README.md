@@ -68,4 +68,10 @@ The main workflow is demonstrated in the `ADAPT-VQE simulations.ipynb` notebook.
 The foundational code for the classical ADAPT-VQE algorithm was developed by **Miquel Carrasco**. His original work can be found in his repository:
 *[miquel-carrasco/UCC_vs_ADAPT_p_shell](https://github.com/miquel-carrasco/UCC_vs_ADAPT_p_shell)
 
-The adaptation of this classical framework and the **entire quantum implementation**—including circuit building with `qibo`, energy measurement protocols, and the hybrid simulation logic—were developed as part of this Bachelor's Thesis
+The adaptation of this classical framework and the **entire quantum implementation**—including circuit building with `qibo`, energy measurement protocols, and the hybrid simulation logic—were developed as part of my Bachelor's Thesis.
+
+## Contact
+
+For any questions, suggestions, or collaborations regarding this project, feel free to contact me at:
+
+* **Arnau Morón**: [arnau.moron@gmail.com](mailto:arnau.moron@gmail.com)

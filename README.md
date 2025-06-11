@@ -7,10 +7,10 @@ The project combines a classical framework for operator selection with a quantum
 ## Key Features
 
 * **ADAPT-VQE Implementation**: Iteratively builds an efficient ansatz by only adding operators that contribute most significantly to lowering the energy.
-* [cite_start]**Quantum Simulation**: Uses `qibo` and `qibojit` for quantum circuit simulations, supporting both exact state-vector calculations and shot-based measurements.
+* **Quantum Simulation**: Uses `qibo` and `qibojit` for quantum circuit simulations, supporting both exact state-vector calculations and shot-based measurements.
 * **Nuclear Flexibility**: The code is designed to simulate any desired shell by adapting the number of qubits and the corresponding data files.
-* [cite_start]**Shot Noise Analysis**: Includes analysis of how the number of shots in a simulation impacts the accuracy and standard deviation of the calculated energy.
-* [cite_start]**Hybrid Approach**: Demonstrates a mixed workflow where operators are selected classically, and their parameters are then optimized within a quantum simulation environment.
+* **Shot Noise Analysis**: Includes analysis of how the number of shots in a simulation impacts the accuracy and standard deviation of the calculated energy.
+* **Hybrid Approach**: Demonstrates a mixed workflow where operators are selected classically, and their parameters are then optimized within a quantum simulation environment.
 
 ## Project Structure
 
@@ -18,7 +18,7 @@ The project combines a classical framework for operator selection with a quantum
 * `Ansatze.py`: Defines the classes for the ansätze, including `ADAPTAnsatz` (for the classical part) and `ADAPT_mixed_Ansatz` (for the quantum/mixed simulation).
 * `Circuit.py`: Contains the logic for building quantum circuits. It handles the mapping from fermionic operators to Pauli strings (Jordan-Wigner transformation) and assembles the circuits using `qibo` via the `Circuits_Composser` class.
 * `Methods.py`: Implements the main VQE logic. It contains the `ADAPTVQE` and `ADAPT_mixed_VQE` classes that manage the classical optimization loop and interface with the ansatz.
-* [cite_start]`ADAPT-VQE simulations.ipynb`: A Jupyter Notebook demonstrating the complete workflow: from the initial classical ADAPT simulation to the quantum optimization with shots and results analysis.
+* `ADAPT-VQE simulations.ipynb`: A Jupyter Notebook demonstrating the complete workflow: from the initial classical ADAPT simulation to the quantum optimization with shots and results analysis.
 * `requirements.txt`: A list of all necessary Python packages.
 
 ## Installation

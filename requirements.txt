@@ -1,1 +1,7 @@
-numpy, matplotlib, scipy, tqdm, openfermion, qibo, qibojit
+numpy
+scipy
+tqdm
+jupyter
+openfermion
+qibo
+qibojit

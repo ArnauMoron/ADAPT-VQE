@@ -31,7 +31,7 @@ git clone https://github.com/ArnauMoron/ADAPT-VQE
 # Install the dependencies
 pip install -r requirements.txt
 
-
+```
 ##  Usage and Workflow
 
 [cite_start]The main workflow is demonstrated in the `ADAPT-VQE simulations.ipynb` notebook.

@@ -1,7 +1,7 @@
 import numpy as np
-from Nucleus import Nucleus
+from VQE.Nucleus import Nucleus
 from  scipy.sparse.linalg import expm_multiply, expm
-
+from VQE.Circuit import Circuits_Composser, Qibo_measure_Energy
 
 
 class Ansatz():
@@ -43,9 +43,7 @@ class Ansatz():
         self.fcalls = 0
         self.count_fcalls = False
         self.ansatz = self.ref_state
-
-    
-    
+  
 class ADAPTAnsatz(Ansatz):
     """
     Child Ansatz class to define the ADAPT ansatz for VQE.
@@ -137,3 +135,78 @@ class ADAPTAnsatz(Ansatz):
         max_operator = self.operator_pool[gradients.index(max_gradient)]
         
         return max_operator,max_gradient
+    
+class ADAPT_mixed_Ansatz(Ansatz):
+    """
+    Child Ansatz class to define the ADAPT ansatz for VQE.
+
+    Attributes:
+        nucleus (Nucleus): Nucleus object.
+        ref_state (np.ndarray): Reference state of the ansatz.
+        pool_format (str): Format of the operator pool.
+        operators_list (list): List of operators to be used in the ansatz.
+        added_operators (list): List of operators added to the ansatz.
+        minimum (bool): If True, the ansatz has reached the minimum energy.
+        E0 (float): Energy of the ansatz without any excitation operators.
+
+    Methods:
+        build_ansatz: Returns the state of the ansatz on a given VQE iteratioin, after building it with the given paramters and the operators in the pool.
+        energy: Returns the energy of the ansatz on a given VQE iteration.
+        choose_operator: Returns the next operator and its gradient, after an ADAPT iteration.
+    """
+
+    def __init__(self,
+                 nucleus: Nucleus,
+                 ref_state: np.ndarray, 
+                 data: dict,
+                 exact:bool=True,
+                 nshots:int = 1000) -> None:
+        """
+        Initialization of the ADAPTAnsatz object.
+
+        Args:
+            nucleus (Nucleus): Nucleus object.
+            ref_state (np.ndarray): Reference state of the ansatz.
+            pool_format (str): Format of the operator pool.
+            operators_list (list): List of operators to be used in the ansatz (optional).
+        """
+        super().__init__(nucleus, ref_state)
+        self.added_operators = []
+        self.minimum = False
+        self.data=data
+        self.exact=exact
+        self.nshots=nshots
+        self.E0 = self.energy([])
+        self.capas=0
+
+
+    def energy(self, parameters, **kwargs) -> float:
+        """
+        Returns the energy of the ansatz on a given VQE iteration.
+
+        Args:
+            parameters (list): Values of the parameters of a given VQE iteration.
+        
+        Returns:
+            float: Energy of the ansatz.
+        """
+        data = self.data
+        monoparticular_energies = data['monoparticular']
+        two_index = data['two_index']
+        used_operators = data['used_operators'][0:len(parameters)]
+        operator_pool = data['ham_pool']
+        name = data['name']
+        ref_state = data['ref_state']
+        n_qubits = 12
+        print(ref_state)
+        
+        composer = Circuits_Composser(operator_pool=operator_pool, operators_used=used_operators, n_qubits=n_qubits, ref_state=ref_state, name=name, parameters=parameters)
+        Qibo_circuits=composer.Qibo_all_circuits()
+
+        Et = Qibo_measure_Energy(monoparticular_energies, two_index, Qibo_circuits, exact=self.exact, nshots=self.nshots)
+        
+        return Et
+
+    def choose_operator(self):
+        i=self.capas
+        return self.data['used_operators'][i]

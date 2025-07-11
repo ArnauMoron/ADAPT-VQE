@@ -1,8 +1,10 @@
 import numpy as np
 from VQE.Nucleus import Nucleus
-from  scipy.sparse.linalg import expm_multiply, expm
-from VQE.Circuit import Circuits_Composser, Qibo_measure_Energy
-
+from  scipy.sparse.linalg import expm_multiply
+from VQE.Circuit import Circuits_Composser
+from VQE.Circuit import Circuits_Composser
+import io
+import contextlib
 
 class Ansatz():
     """
@@ -135,6 +137,108 @@ class ADAPTAnsatz(Ansatz):
         max_operator = self.operator_pool[gradients.index(max_gradient)]
         
         return max_operator,max_gradient
+
+class QuantumADAPTAnsatz(Ansatz):
+    """
+    Child Ansatz class to define the ADAPT ansatz for VQE.
+
+    Attributes:
+        nucleus (Nucleus): Nucleus object.
+        ref_state (np.ndarray): Reference state of the ansatz.
+        pool_format (str): Format of the operator pool.
+        operators_list (list): List of operators to be used in the ansatz.
+        added_operators (list): List of operators added to the ansatz.
+        minimum (bool): If True, the ansatz has reached the minimum energy.
+        E0 (float): Energy of the ansatz without any excitation operators.
+
+    Methods:
+        build_ansatz: Returns the state of the ansatz on a given VQE iteratioin, after building it with the given paramters and the operators in the pool.
+        energy: Returns the energy of the ansatz on a given VQE iteration.
+        choose_operator: Returns the next operator and its gradient, after an ADAPT iteration.
+    """
+
+    def __init__(self,
+                 nucleus : Nucleus,
+                 ref_state : np.ndarray,
+                 exact : bool,
+                 nshots : int = 1000 ) -> None:
+        """
+        Initialization of the ADAPTAnsatz object.
+
+        Args:
+            nucleus (Nucleus): Nucleus object.
+            ref_state (np.ndarray): Reference state of the ansatz.
+            pool_format (str): Format of the operator pool.
+            operators_list (list): List of operators to be used in the ansatz (optional).
+        """
+        super().__init__(nucleus, ref_state)
+        self.added_operators = []
+        self.minimum = False
+        self.exact = exact
+        self.nshots = nshots
+        self.E0 = self.energy([])
+        
+    def build_ansatz(self, parameters: list) -> np.ndarray:
+        """
+        Returns the state of the ansatz on a given VQE iteratioin, after building it with the given paramters and the operators in the pool.
+
+        Args:
+            parameters (list): Values of the parameters of a given VQE iteration.
+
+        Returns:
+            Circuit composser class.        
+        """
+        
+        if len(parameters)==0:
+            only_ref=True
+        else:
+            only_ref=False
+        
+        ansatz=Circuits_Composser(nucleus=self.nucleus.name,
+                                  n_qubits=self.nucleus.n_qubits,
+                                  ref_state=self.ref_state,
+                                  parameters=parameters,
+                                  operators_used=self.added_operators,
+                                  only_ref=only_ref,
+                                  exact=self.exact,
+                                  nshots=1000)
+
+        return ansatz
+        
+
+    def energy(self, parameters: list) -> float:
+        """
+        Returns the energy of the ansatz on a given VQE iteration.
+
+        Args:
+            parameters (list): Values of the parameters of a given VQE iteration.
+        
+        Returns:
+            float: Energy of the ansatz.
+        """
+        
+        self.ansatz = self.build_ansatz(parameters)
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            E = self.ansatz.Qibo_measure_Energy()
+        
+        return E
+
+
+    def choose_operator(self) -> tuple:
+        """
+        Returns the next operator and its gradient, after an ADAPT iteration.
+
+        Returns:
+            TwoBodyExcitationOperator: Next operator.
+            float: Gradient of the next operator.
+        """
+        
+        gradients = [abs(self.ansatz.Qibo_measure_gradient(op.ijkl)) for op in self.operator_pool]
+        max_gradient = max(gradients)
+        max_operator = self.operator_pool[gradients.index(max_gradient)]
+        
+        return max_operator,max_gradient
     
 class ADAPT_mixed_Ansatz(Ansatz):
     """
@@ -191,19 +295,22 @@ class ADAPT_mixed_Ansatz(Ansatz):
             float: Energy of the ansatz.
         """
         data = self.data
-        monoparticular_energies = data['monoparticular']
-        two_index = data['two_index']
-        used_operators = data['used_operators'][0:len(parameters)]
-        operator_pool = data['ham_pool']
-        name = data['name']
+        parameters = data['parameters']
         ref_state = data['ref_state']
-        n_qubits = 12
-        print(ref_state)
         
-        composer = Circuits_Composser(operator_pool=operator_pool, operators_used=used_operators, n_qubits=n_qubits, ref_state=ref_state, name=name, parameters=parameters)
-        Qibo_circuits=composer.Qibo_all_circuits()
+        
+        
+        composer = Circuits_Composser(nucleus=self.nucleus.name,
+                                  n_qubits=self.nucleus.n_qubits,
+                                  ref_state=ref_state,
+                                  parameters=parameters,
+                                  operators_used=self.added_operators,
+                                  only_ref=False,
+                                  exact=self.exact,
+                                  nshots=self.nshots)
+        Et=composer.Qibo_measure_Energy()
 
-        Et = Qibo_measure_Energy(monoparticular_energies, two_index, Qibo_circuits, exact=self.exact, nshots=self.nshots)
+
         
         return Et
 

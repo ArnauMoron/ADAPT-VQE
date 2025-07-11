@@ -1,67 +1,44 @@
-# ADAPT-VQE for Nuclear Ground State Simulations
+# ADAPT-VQE for the nuclear ground state problem
 
-This repository contains the code developed for my Bachelor's Thesis, focusing on the implementation and simulation of the **ADAPT-VQE** algorithm to calculate the ground-state energy of light atomic nuclei.
+This is the code developed for my Bachelor's Thesis, which consists in the implementation and simulation of the **ADAPT-VQE** algorithm to compute the ground state energy of light atomic nuclei.
 
-The project combines a classical framework for operator selection with a quantum implementation for circuit construction and measurement.
+The algorithm has a classical framework that allows to select the operators and a quantum part that is in charge of building the circuits and measuring the energy. A new feature has been implemented to also compute the gradients on a quantum simulator. The code can be run in three different ways:
 
-## Key Features
+* **Classical**: Operator selection and parameter optimization are performed classically.
+* **Quantum**: Both operator selection (via quantum gradient calculation) and parameter optimization are performed on a quantum simulator.
+* **Mixed**: The operator ordering from a classical run is used to re-optimize the parameters in a quantum simulation environment.
 
-* **ADAPT-VQE Implementation**: Iteratively builds an efficient ansatz by only adding operators that contribute most significantly to lowering the energy.
-* **Quantum Simulation**: Uses `qibo` and `qibojit` for quantum circuit simulations, supporting both exact state-vector calculations and shot-based measurements.
-* **Nuclear Flexibility**: The code is designed to simulate any desired shell by adapting the number of qubits and the corresponding data files.
-* **Shot Noise Analysis**: Includes analysis of how the number of shots in a simulation impacts the accuracy and standard deviation of the calculated energy.
-* **Hybrid Approach**: Demonstrates a mixed workflow where operators are selected classically, and their parameters are then optimized within a quantum simulation environment.
+## `Nucleus.py`
 
-## Project Structure
+In this file, the `Nucleus` class is implemented. It is in charge of managing the data of a given nucleus. It takes the Hamiltonian, the basis states and the operators from data files. So the code can be easily used to simulate any nuclear shell by changing the number of qubits and the corresponding data files.
 
-* `Nucleus.py`: A class that manages the data for a given nucleus (Hamiltonian, basis states, operators) from data files.
-* `Ansatze.py`: Defines the classes for the ansätze, including `ADAPTAnsatz` (for the classical part) and `ADAPT_mixed_Ansatz` (for the quantum/mixed simulation).
-* `Circuit.py`: Contains the logic for building quantum circuits. It handles the mapping from fermionic operators to Pauli strings (Jordan-Wigner transformation) and assembles the circuits using `qibo` via the `Circuits_Composser` class.
-* `Methods.py`: Implements the main VQE logic. It contains the `ADAPTVQE` and `ADAPT_mixed_VQE` classes that manage the classical optimization loop and interface with the ansatz.
-* `ADAPT-VQE simulations.ipynb`: A Jupyter Notebook demonstrating the complete workflow: from the initial classical ADAPT simulation to the quantum optimization with shots and results analysis.
-* `requirements.txt`: A list of all necessary Python packages.
+## `Ansatze.py`
 
-## Installation
+This file defines the classes for the ansätze:
 
-To run this project, clone the repository and install the required dependencies.
+* `ADAPTAnsatz`: Implements the ADAPT ansatz for the classical version of the algorithm.
+* `QuantumADAPTAnsatz`: Implements the ansatz for the **fully quantum version**, where both the energy and the gradients are computed with `qibo`.
+* `ADAPT_mixed_Ansatz`: Implements the ansatz for the hybrid or mixed simulation, which uses a predefined operator ordering to optimize parameters on a quantum simulator.
 
-```bash
-git clone https://github.com/ArnauMoron/ADAPT-VQE
+## `Circuit.py`
 
-# Install the dependencies
-pip install -r requirements.txt
+This file contains the logic for **quantum circuit composition**. The `Circuits_Composser` class is the core of this section, handling:
 
-```
+* The transformation of fermionic operators into Pauli strings (Jordan-Wigner).
+* The construction of the exponentials of Pauli operators (the ansatz) using the "staircase" algorithm.
+* **Dynamic composition of circuits**: It assembles all the necessary circuits to measure each term of the Hamiltonian and the gradients of the operators.
 
-## Usage and Workflow
+## `Methods.py`
 
-The main workflow is demonstrated in the `ADAPT-VQE simulations.ipynb` notebook.
+This file implements the main logic of the VQE algorithm. It contains the `ADAPTVQE`, `QuantumADAPTVQE` and `ADAPT_mixed_VQE` classes, which manage the optimization loop and interface with the corresponding ansatz. The new `QuantumADAPTVQE` class handles the entire quantum workflow, including calling the circuit composer for energy and gradient measurements.
 
-1. **Run Classical ADAPT**: The `ADAPT_minimization` function runs the ADAPT algorithm classically to determine the optimal sequence of operators for building the ansatz.
+## `ADAPT-VQE simulations.ipynb`
 
-    ```python
-    data, nucleo = ADAPT_minimization(nuc='Be6', ref_state=0, n_qubits=6, max_layers=3)
-    ```
+This is a Jupyter Notebook that shows the whole workflow of the project. It has examples on how to run the classical, full quantum and mixed simulations, as well as the analysis of the results. It also includes an analysis on how the shot noise affects the accuracy and standard deviation of the computed energy.
 
-2. **Build Quantum Circuits**: Using the selected operators, `Circuits_Composser` constructs all the necessary quantum circuits to measure the different energy contributions.
+## `requirements.txt`
 
-3. **Measure Energy (Quantum Simulation)**: The `Qibo_measure_Energy` function calculates the total energy. It can operate in two modes:
-    * **Exact**: By calculating the expectation value analytically from the final state vector.
-    * **Shot-based**: By simulating actual measurements on the circuit to estimate probabilities and, from them, the energy.
-
-    ```python
-    # Exact measurement
-    Et_exact = Qibo_measure_Energy(..., exact=True)
-
-    # Measurement with 1000 shots
-    Et_shots = Qibo_measure_Energy(..., exact=False, nshots=1000)
-    ```
-
-4. **Mixed Optimization**: The `ADAPT_mixed_minimization` function takes the operator ordering from the classical step and re-optimizes the operator parameters directly on the quantum simulator, taking shot noise into account.
-
-    ```python
-    data_mixed, nucleo = ADAPT_mixed_minimization(data=data, ..., exact=False, nshots=1000)
-    ```
+This file contains a list of all the Python dependencies needed to run the code.
 
 ## Acknowledgements
 

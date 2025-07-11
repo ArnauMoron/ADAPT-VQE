@@ -2,7 +2,7 @@ from scipy.optimize import minimize
 import numpy as np
 
 from VQE.Nucleus import Nucleus
-from VQE.Ansatze import ADAPTAnsatz, ADAPT_mixed_Ansatz
+from VQE.Ansatze import ADAPTAnsatz, QuantumADAPTAnsatz, ADAPT_mixed_Ansatz
 from VQE.Circuit import Circuits_Composser
 
 
@@ -168,7 +168,6 @@ class ADAPTVQE(VQE):
                                   options=self.options)
                 self.parameters = list(result.x)
 
-                print(self.parameters)
 
                 nf = result.nfev
                 
@@ -181,20 +180,18 @@ class ADAPTVQE(VQE):
                 self.ansatz.count_fcalls = False
                 self.ansatz.ansatz = self.ansatz.build_ansatz(self.parameters)
                 
-
+                
                 next_operator,next_gradient = self.ansatz.choose_operator()
-                if self.conv_criterion == 'Repeated op' and next_operator == self.ansatz.added_operators[-1]:
+                
+                if next_operator == self.ansatz.added_operators[-1]:
                     self.ansatz.minimum = True
-                elif self.conv_criterion == 'Gradient' and next_gradient < 1e-7:
+                if next_gradient < self.test_threshold:
                     self.ansatz.minimum = True
                 else:
                     energy_layers.append(self.energy[-1])
                     rel_error_layers.append(self.rel_error[-1])
                     fcalls_layers.append(self.fcalls[-1])
-                print(f"\n------------ LAYER {len(energy_layers)-1} ------------")
-                print('Energy: ',energy_layers[-1])
-                print('Rel. Error: ',rel_error_layers[-1])
-                print('New Operator: ',self.ansatz.added_operators[-1].ijkl,'    Theta:', self.parameters[-1])
+                
             except OptimizationConvergedException:
                 opt_grad_layers.append('Manually stopped')
             self.state_layers.append(self.ansatz.ansatz)
@@ -202,19 +199,24 @@ class ADAPTVQE(VQE):
             for a in range(len(self.parameters)):
                 self.parameter_layers[a].append(self.parameters[a])      
             rel_error = abs((self.energy[-1] - self.ansatz.nucleus.eig_val[0])/self.ansatz.nucleus.eig_val[0])
-            if rel_error < self.test_threshold and self.stop_at_threshold:
+            if rel_error < self.test_threshold or len(self.parameters)==self.max_layers:
                 self.success = True
-
                 self.ansatz.minimum = True
                 break
-
+            print(f"\n------------ LAYER {len(energy_layers)-1} ------------")
+            print('Operator:',self.ansatz.added_operators[-1].ijkl,', Gradient:', gradient_layers[-1])
+            print('Energy: ',energy_layers[-1])
+            print('Rel. Error: ',rel_error_layers[-1])
+            print('Theta:', self.parameters[-1])
+            
         energy_layers.append(self.energy[-1])
         rel_error_layers.append(self.rel_error[-1])
         fcalls_layers.append(self.fcalls[-1])
-        print(f"\n------------ LAYER {len(energy_layers)-1} ------------")
+        print(f"\n------------ LAYER {len(self.parameters)} ------------")
+        print('Operator:',self.ansatz.added_operators[-1].ijkl,', Gradient:', gradient_layers[-1])
         print('Energy: ',energy_layers[-1])
         print('Rel. Error: ',rel_error_layers[-1])
-        print('New operator: ',self.ansatz.added_operators[-1].ijkl,'    Theta:', self.parameters[-1])
+        print('Theta:', self.parameters[-1])
     
        
 
@@ -224,9 +226,6 @@ class ADAPTVQE(VQE):
             print(f"Layer {i}: Operator {op.ijkl}, Theta = {self.parameters[i]}, Gradient = {gradient_layers[i]}")
             
 
-        self.ansatz.ansatz = self.ansatz.build_ansatz(self.parameters)
-        print('\n Ground state aproximation:')
-        print([(idx, value) for idx, value in enumerate(self.ansatz.ansatz) if value != 0])
 
         print(f'\n Final energy result: {energy_layers[-1]}\t', f'Final relative error is {self.rel_error[-1]}' )
 
@@ -322,80 +321,72 @@ def ADAPT_minimization(nucleus: str,
     
     return data, nuc
 
+def Quantum_ADAPT_minimization(nucleus: str,
+                       ref_state: int = 0,
+                       threshold: float = 1e-6,
+                       stop_at_threshold: bool = True,
+                       max_layers: int = 20,
+                       n_qubits: int = 6, 
+                       exact: bool = True,
+                       nshots: int = 1000):
 
-    """
-    Child Ansatz class to define the ADAPT ansatz for VQE.
-
-    Attributes:
-        nucleus (Nucleus): Nucleus object.
-        ref_state (np.ndarray): Reference state of the ansatz.
-        pool_format (str): Format of the operator pool.
-        operators_list (list): List of operators to be used in the ansatz.
-        added_operators (list): List of operators added to the ansatz.
-        minimum (bool): If True, the ansatz has reached the minimum energy.
-        E0 (float): Energy of the ansatz without any excitation operators.
-
-    Methods:
-        build_ansatz: Returns the state of the ansatz on a given VQE iteratioin, after building it with the given paramters and the operators in the pool.
-        energy: Returns the energy of the ansatz on a given VQE iteration.
-        choose_operator: Returns the next operator and its gradient, after an ADAPT iteration.
-    """
-
-    def __init__(self,
-                 nucleus: Nucleus,
-                 ref_state: np.ndarray, 
-                 data: dict,
-                 exact:bool=True,
-                 nshots:int = 1000) -> None:
-        """
-        Initialization of the ADAPTAnsatz object.
-
-        Args:
-            nucleus (Nucleus): Nucleus object.
-            ref_state (np.ndarray): Reference state of the ansatz.
-            pool_format (str): Format of the operator pool.
-            operators_list (list): List of operators to be used in the ansatz (optional).
-        """
-        super().__init__(nucleus, ref_state)
-        self.added_operators = []
-        self.minimum = False
-        self.data=data
-        self.exact=exact
-        self.nshots=nshots
-        self.E0 = self.energy([])
-        self.capas=0
-
-
-    def energy(self, parameters, **kwargs) -> float:
-        """
-        Returns the energy of the ansatz on a given VQE iteration.
-
-        Args:
-            parameters (list): Values of the parameters of a given VQE iteration.
+    ref_state_dict = {'ref_state':ref_state}
+    nuc = Nucleus(nucleus, n_qubits=n_qubits)
+    
+    ansatz = QuantumADAPTAnsatz(nucleus = nuc,
+                                 ref_state = ref_state,
+                                 exact = exact,
+                                 nshots = nshots)
+    
+    if exact:
+        opt = 'L-BFGS-B'
+    else:
+        opt = 'COBYLA'
         
-        Returns:
-            float: Energy of the ansatz.
-        """
-        data = self.data
-        monoparticular_energies = data['monoparticular']
-        two_index = data['two_index']
-        used_operators = data['used_operators'][0:len(parameters)]
-        operator_pool = data['ham_pool']
-        name = data['name']
-        ref_state = data['ref_state']
-        n_qubits = 12
-        print(ref_state)
-        
-        composer = Circuits_Composser(operator_pool=operator_pool, operators_used=used_operators, n_qubits=n_qubits, ref_state=ref_state, name=name, parameters=parameters)
-        Qibo_circuits=composer.Qibo_all_circuits()
+    vqe = ADAPTVQE(ansatz = ansatz,
+                   method = opt,
+                   test_threshold = threshold,
+                   stop_at_threshold = stop_at_threshold,
+                   max_layers = max_layers)
 
-        Et = Qibo_measure_Energy(monoparticular_energies, two_index, Qibo_circuits, exact=self.exact, nshots=self.nshots)
-        
-        return Et
+    
+    ham = nuc.Ham_2_body_contributions()
+    
 
-    def choose_operator(self):
-        i=self.capas
-        return data['used_operators'][i]
+    two_index=[]
+    ham_pool=[]
+
+    for op in ham:
+        if len(set(op.ijkl))==2:
+            two_index.append(op)
+        else:
+            ham_pool.append(op)
+
+
+    data=vqe.run()
+    
+    one_body, monoparticular = nuc.Ham_1_body_contributions()
+    diag_two_body_ops = {'two_index':two_index}
+    ham_pool_ops = {'ham_pool':ham_pool}
+    one_body = {'one_body':one_body}
+    monoparticular = {'monoparticular':monoparticular}
+    name = {'name':nucleus}
+    
+    
+    data.update(monoparticular)    
+
+    data.update(diag_two_body_ops)    
+
+    data.update(ham_pool_ops)
+    
+    data.update(one_body)
+    
+    data.update(name)
+    
+    data.update(ref_state_dict)
+    
+    
+    return data, nuc
 
 class ADAPT_mixed_VQE(VQE):
     """
@@ -564,7 +555,7 @@ class ADAPT_mixed_VQE(VQE):
             raise OptimizationConvergedException
 
 def ADAPT_mixed_minimization(data: dict,
-                            nucleus: str,
+                            nucleus: Nucleus,
                        ref_state: int = 0,
                        opt_method: str = "L-BFGS-B",
                        threshold: float = 1e-6,
@@ -575,11 +566,11 @@ def ADAPT_mixed_minimization(data: dict,
                        nshots:int = 1000):
 
     
-    nuc = Nucleus(nucleus, n_qubits=n_qubits)
-    ref_state = np.eye(nuc.d_H)[ref_state]
+    
+    ref_state = np.eye(nucleus.d_H)[ref_state]
     
     ansatz = ADAPT_mixed_Ansatz(data= data,
-                                nucleus = nuc,
+                                nucleus = nucleus,
                                 ref_state = ref_state,
                                 exact=exact,
                                 nshots=nshots)
@@ -593,7 +584,7 @@ def ADAPT_mixed_minimization(data: dict,
                    exact=exact)
 
     
-    ham = nuc.Ham_2_body_contributions()
+    ham = nucleus.Ham_2_body_contributions()
     
 
     two_index=[]
@@ -608,7 +599,7 @@ def ADAPT_mixed_minimization(data: dict,
 
     data=vqe.run()
     
-    one_body, monoparticular = nuc.Ham_1_body_contributions()
+    one_body, monoparticular = nucleus.Ham_1_body_contributions()
     diag_two_body_ops = {'two_index':two_index}
     ham_pool_ops = {'ham_pool':ham_pool}
     one_body = {'one_body':one_body}
@@ -630,4 +621,4 @@ def ADAPT_mixed_minimization(data: dict,
     data.update(ref_state_dict)
     
     
-    return data, nuc
+    return data, nucleus

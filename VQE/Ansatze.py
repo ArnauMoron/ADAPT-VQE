@@ -176,7 +176,10 @@ class QuantumADAPTAnsatz(Ansatz):
         self.minimum = False
         self.exact = exact
         self.nshots = nshots
+        self.ansatz = None
         self.E0 = self.energy([])
+        
+        
         
     def build_ansatz(self, parameters: list) -> np.ndarray:
         """
@@ -185,23 +188,29 @@ class QuantumADAPTAnsatz(Ansatz):
         Args:
             parameters (list): Values of the parameters of a given VQE iteration.
 
-        Returns:
-            Circuit composser class.        
         """
         
         if len(parameters)==0:
             only_ref=True
         else:
             only_ref=False
-        
-        ansatz=Circuits_Composser(nucleus=self.nucleus.name,
-                                  n_qubits=self.nucleus.n_qubits,
-                                  ref_state=self.ref_state,
-                                  parameters=parameters,
-                                  operators_used=self.added_operators,
-                                  only_ref=only_ref,
-                                  exact=self.exact,
-                                  nshots=1000)
+            
+        if self.ansatz == None:
+            ansatz=Circuits_Composser(nucleus=self.nucleus.name,
+                                    n_qubits=self.nucleus.n_qubits,
+                                    ref_state=self.ref_state,
+                                    parameters=parameters,
+                                    operators_used=self.added_operators,
+                                    only_ref=only_ref,
+                                    exact=self.exact,
+                                    nshots=self.nshots)
+            
+        else:
+            ansatz = self.ansatz
+            ansatz.only_ref = only_ref
+            ansatz.operators_used = self.added_operators
+            ansatz.parameters = parameters
+            
 
         return ansatz
         

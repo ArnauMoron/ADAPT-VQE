@@ -2,7 +2,7 @@ import numpy as np
 from VQE.Nucleus import Nucleus
 from  scipy.sparse.linalg import expm_multiply
 from VQE.Circuit import Circuits_Composser
-from VQE.Circuit import Circuits_Composser
+
 import io
 import contextlib
 
@@ -289,11 +289,22 @@ class ADAPT_mixed_Ansatz(Ansatz):
         self.data=data
         self.exact=exact
         self.nshots=nshots
+        
+        self.ref_state = ref_state
+        
+        self.composer = Circuits_Composser(nucleus = self.nucleus.name,
+                                  n_qubits = self.nucleus.n_qubits,
+                                  ref_state = self.ref_state,
+                                  parameters = [],
+                                  operators_used = self.added_operators,
+                                  only_ref = False,
+                                  exact = self.exact,
+                                  nshots = self.nshots)
+        
         self.E0 = self.energy([])
         self.capas=0
 
-
-    def energy(self, parameters, **kwargs) -> float:
+    def energy(self, parameters) -> float:
         """
         Returns the energy of the ansatz on a given VQE iteration.
 
@@ -303,23 +314,15 @@ class ADAPT_mixed_Ansatz(Ansatz):
         Returns:
             float: Energy of the ansatz.
         """
-        data = self.data
-        parameters = data['parameters']
-        ref_state = data['ref_state']
-        
-        
-        
-        composer = Circuits_Composser(nucleus=self.nucleus.name,
-                                  n_qubits=self.nucleus.n_qubits,
-                                  ref_state=ref_state,
-                                  parameters=parameters,
-                                  operators_used=self.added_operators,
-                                  only_ref=False,
-                                  exact=self.exact,
-                                  nshots=self.nshots)
-        Et=composer.Qibo_measure_Energy()
 
-
+        
+        f = io.StringIO()
+        
+        self.composer.parameters = parameters
+        
+        
+        with contextlib.redirect_stdout(f):
+            Et = self.composer.Qibo_measure_Energy()
         
         return Et
 

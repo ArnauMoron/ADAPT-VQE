@@ -168,8 +168,6 @@ class ADAPTVQE(VQE):
                                   options=self.options)
                 self.parameters = list(result.x)
 
-
-                nf = result.nfev
                 
                 if self.method!='COBYLA':
                     opt_grad= np.linalg.norm(result.jac)
@@ -426,8 +424,7 @@ class ADAPT_mixed_VQE(VQE):
         self.max_layers = max_layers
         self.data = data
         self.exact = exact
-        operators_used=data['used_operators']
-        self.operators_used=operators_used
+        self.operators_used = data['used_operators']
         
         self.options={}
 
@@ -459,40 +456,46 @@ class ADAPT_mixed_VQE(VQE):
         next_operator = self.ansatz.choose_operator()
         
         
-        opt_grad_layers = []
         energy_layers = [E0]
         rel_error_layers = [self.rel_error[-1]]
         fcalls_layers = [self.fcalls[-1]]
         
         
-        while self.ansatz.capas<len(self.data['used_operators']):
+        while self.ansatz.capas<len(self.operators_used):
+            
             self.ansatz.capas += 1
+            
             self.ansatz.added_operators.append(next_operator)
             
             self.parameter_layers.append([])
             self.layer_fcalls.append(self.ansatz.fcalls)
             self.parameters.append(0.0)
             self.ansatz.count_fcalls = True
-            scaling=[0.3 for _ in range(len(self.parameters)-1)]
-            scaling.append(1)
+           
             try:
             
                 result = minimize(self.ansatz.energy,
                                     self.parameters,
                                     method=self.method,
                                     callback=self.callback,
-                                    options=self.options,
-                                    bounds=[(-np.pi, np.pi) for _ in range(len(self.parameters))])
+                                    options=self.options)
+                
                 self.parameters = list(result.x)
-
-                print(self.parameters)
+                
+                
+                if len(self.parameters)<len(self.data['parameters']): 
+                    next_operator = self.ansatz.choose_operator()
+                    energy_layers.append(self.energy[-1])
+                    rel_error_layers.append(self.rel_error[-1])
+                    fcalls_layers.append(self.fcalls[-1])   
+                
+            except OptimizationConvergedException:
+                pass  
             except Exception as e:
                 print(e)
+                print('FALLO: ', self.parameters)
                 
-                print('final parameters: ', self.parameters)
-                break
-              
-
+            
 
             for a in range(len(self.parameters)):
                 self.parameter_layers[a].append(self.parameters[a])      
@@ -502,11 +505,17 @@ class ADAPT_mixed_VQE(VQE):
 
                 self.ansatz.minimum = True
                 break
+            print(f"\n------------ LAYER {len(energy_layers)-1} ------------")
+            print('Operator:',self.ansatz.added_operators[-1].ijkl)
+            print('Energy: ',energy_layers[-1])
+            print('Rel. Error: ',rel_error_layers[-1])
+            print('Theta:', self.parameters[-1])
 
         energy_layers.append(self.energy[-1])
         rel_error_layers.append(self.rel_error[-1])
         fcalls_layers.append(self.fcalls[-1])
         print(f"\n------------ LAYER {len(energy_layers)-1} ------------")
+        print('Operator:',self.ansatz.added_operators[-1].ijkl)
         print('Energy: ',energy_layers[-1])
         print('Rel. Error: ',rel_error_layers[-1])
         print('New operator: ',self.ansatz.added_operators[-1].ijkl,'    Theta:', self.parameters[-1])
@@ -519,8 +528,7 @@ class ADAPT_mixed_VQE(VQE):
             print(f"Layer {i}: Operator {op.ijkl}, Theta = {self.parameters[i]}")
 
         
-        print('\n Ground state aproximation:')
-        print([(idx, value) for idx, value in enumerate(self.ansatz.ansatz) if value != 0])
+        
 
         print(f'\n Final energy result: {energy_layers[-1]}\t', f'Final relative error is {self.rel_error[-1]}' )
 
@@ -557,31 +565,29 @@ class ADAPT_mixed_VQE(VQE):
 def ADAPT_mixed_minimization(data: dict,
                             nucleus: Nucleus,
                        ref_state: int = 0,
-                       opt_method: str = "L-BFGS-B",
                        threshold: float = 1e-6,
                        stop_at_threshold: bool = True,
                        max_layers: int = 20,
-                       n_qubits: int = 6,
                        exact:bool =True,
                        nshots:int = 1000):
 
-    
-    
-    ref_state = np.eye(nucleus.d_H)[ref_state]
-    
-    ansatz = ADAPT_mixed_Ansatz(data= data,
+    if exact:
+        opt = 'L-BFGS-B'
+    else:
+        opt = 'COBYLA'
+    ansatz = ADAPT_mixed_Ansatz(data = data,
                                 nucleus = nucleus,
                                 ref_state = ref_state,
-                                exact=exact,
-                                nshots=nshots)
+                                exact = exact,
+                                nshots = nshots)
     
-    vqe = ADAPT_mixed_VQE(data=data,
+    vqe = ADAPT_mixed_VQE(data = data,
                           ansatz = ansatz,
-                   method = opt_method,
-                   test_threshold = threshold,
-                   stop_at_threshold = stop_at_threshold,
-                   max_layers = max_layers,
-                   exact=exact)
+                          method = opt,
+                          test_threshold = threshold,
+                          stop_at_threshold = stop_at_threshold,
+                          max_layers = max_layers,
+                          exact = exact)
 
     
     ham = nucleus.Ham_2_body_contributions()
@@ -597,7 +603,7 @@ def ADAPT_mixed_minimization(data: dict,
             ham_pool.append(op)
 
 
-    data=vqe.run()
+    data = vqe.run()
     
     one_body, monoparticular = nucleus.Ham_1_body_contributions()
     diag_two_body_ops = {'two_index':two_index}
